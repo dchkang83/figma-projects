@@ -152,6 +152,13 @@ function App() {
   
   return (
     <div className="App">
+
+
+<div>test
+<Modal1 />
+
+</div>
+
       <header className="App-header">
         <h1>Figma to React Component Converter</h1>
         <button 

@@ -1,5 +1,5 @@
 // src/utils/componentGenerator.js
-import { pascalCase, kebabCase } from './stringUtils';
+import { pascalCase, kebabCase, translateKoreanToEnglish } from './stringUtils';
 import figmaService from '../services/figmaService';
 
 // Figma 컴포넌트 데이터를 기반으로 React 컴포넌트 코드 생성
@@ -64,12 +64,15 @@ const generateChildrenJSX = (children, indentLevel) => {
   const indent = ' '.repeat(indentLevel);
   
   children.forEach(child => {
+    // 노드 이름에서 유효한 CSS 클래스명 생성
+    const className = sanitizeClassName(child.name);
+    
     // 노드 유형에 따라 다른 JSX 생성
     if (child.type === 'TEXT') {
       // 텍스트 노드
-      const className = kebabCase(child.name);
-      const textContent = child.characters || child.name;
+      let textContent = child.characters || child.name;
       
+      // 텍스트 내용은 원본 그대로 유지 (한글 변환하지 않음)
       // 텍스트 스타일에 따라 태그 결정
       let tag = 'p';
       if (child.style) {
@@ -83,12 +86,10 @@ const generateChildrenJSX = (children, indentLevel) => {
     } 
     else if (child.type === 'RECTANGLE' || child.type === 'ELLIPSE' || child.type === 'VECTOR') {
       // 도형 노드 - div로 표현
-      const className = kebabCase(child.name);
       jsx += `${indent}<div className={cx('${className}')}></div>\n`;
     }
     else if (child.type === 'FRAME' || child.type === 'GROUP' || child.type === 'INSTANCE') {
       // 프레임, 그룹, 인스턴스 노드 - div로 표현하고 자식 노드 처리
-      const className = kebabCase(child.name);
       jsx += `${indent}<div className={cx('${className}')}>\n`;
       
       if (child.children && child.children.length > 0) {
@@ -100,6 +101,130 @@ const generateChildrenJSX = (children, indentLevel) => {
   });
   
   return jsx;
+};
+
+// 유효한 CSS 클래스명으로 변환
+const sanitizeClassName = (name) => {
+  if (!name) return 'element';
+  
+  // kebabCase 함수를 사용하여 기본 변환
+  let className = kebabCase(name);
+  
+  // CSS 클래스명에 사용할 수 없는 특수문자 처리
+  // 슬래시(/)는 이미 kebabCase에서 하이픈(-)으로 변환됨
+  className = className
+    .replace(/\./g, '-dot-')     // 점(.)을 -dot-으로 변환
+    .replace(/\\/g, '-slash-')   // 백슬래시(\)를 -slash-로 변환
+    .replace(/:/g, '-colon-')    // 콜론(:)을 -colon-으로 변환
+    .replace(/\*/g, '-star-')    // 별표(*)를 -star-로 변환
+    .replace(/\+/g, '-plus-')    // 더하기(+)를 -plus-로 변환
+    .replace(/\[/g, '-bracket-') // 대괄호([)를 -bracket-으로 변환
+    .replace(/\]/g, '-bracket-') // 대괄호(])를 -bracket-으로 변환
+    .replace(/\(/g, '-paren-')   // 괄호(()를 -paren-으로 변환
+    .replace(/\)/g, '-paren-')   // 괄호())를 -paren-으로 변환
+    .replace(/>/g, '-gt-')       // 부등호(>)를 -gt-로 변환
+    .replace(/</g, '-lt-')       // 부등호(<)를 -lt-로 변환
+    .replace(/&/g, '-amp-')      // 앰퍼샌드(&)를 -amp-로 변환
+    .replace(/,/g, '-comma-')    // 쉼표(,)를 -comma-로 변환
+    .replace(/'/g, '-quote-')    // 작은따옴표(')를 -quote-로 변환
+    .replace(/"/g, '-quote-')    // 큰따옴표(")를 -quote-로 변환
+    .replace(/!/g, '-excl-')     // 느낌표(!)를 -excl-로 변환
+    .replace(/\?/g, '-quest-')   // 물음표(?)를 -quest-로 변환
+    .replace(/=/g, '-equals-')   // 등호(=)를 -equals-로 변환
+    .replace(/\|/g, '-pipe-')    // 파이프(|)를 -pipe-로 변환
+    .replace(/;/g, '-semi-')     // 세미콜론(;)을 -semi-로 변환
+    .replace(/@/g, '-at-')       // 골뱅이(@)를 -at-로 변환
+    .replace(/\$/g, '-dollar-')  // 달러($)를 -dollar-로 변환
+    .replace(/#/g, '-hash-')     // 해시(#)를 -hash-로 변환
+    .replace(/%/g, '-percent-')  // 퍼센트(%)를 -percent-로 변환
+    .replace(/\^/g, '-caret-')   // 캐럿(^)을 -caret-로 변환
+    .replace(/~/g, '-tilde-');   // 틸드(~)를 -tilde-로 변환
+  
+  // 숫자로 시작하는 클래스명 처리 (CSS에서는 숫자로 시작할 수 없음)
+  if (/^[0-9]/.test(className)) {
+    className = 'n-' + className;
+  }
+  
+  return className;
+};
+
+// 텍스트 내용을 영문으로 변환
+const translateTextContent = (text) => {
+  // 일반적인 UI 텍스트 변환
+  const commonUITexts = {
+    '제목': 'Title',
+    '부제목': 'Subtitle',
+    '내용': 'Content',
+    '설명': 'Description',
+    '확인': 'Confirm',
+    '취소': 'Cancel',
+    '닫기': 'Close',
+    '저장': 'Save',
+    '삭제': 'Delete',
+    '편집': 'Edit',
+    '추가': 'Add',
+    '검색': 'Search',
+    '로그인': 'Login',
+    '로그아웃': 'Logout',
+    '회원가입': 'Sign Up',
+    '아이디': 'ID',
+    '비밀번호': 'Password',
+    '이메일': 'Email',
+    '이름': 'Name',
+    '전화번호': 'Phone',
+    '주소': 'Address',
+    '메뉴': 'Menu',
+    '홈': 'Home',
+    '소개': 'About',
+    '서비스': 'Services',
+    '연락처': 'Contact',
+    '공지사항': 'Notice',
+    '자주 묻는 질문': 'FAQ',
+    '문의하기': 'Inquiry',
+    '더 보기': 'See More',
+    '자세히 보기': 'View Details',
+    '계속하기': 'Continue',
+    '뒤로 가기': 'Go Back',
+    '다음': 'Next',
+    '이전': 'Previous',
+    '완료': 'Complete',
+    '시작하기': 'Get Started',
+    '환영합니다': 'Welcome',
+    '오류가 발생했습니다': 'An error occurred',
+    '성공적으로 처리되었습니다': 'Successfully processed',
+    '필수 항목입니다': 'Required field',
+    '유효하지 않은 형식입니다': 'Invalid format'
+  };
+  
+  // 정확히 일치하는 텍스트가 있으면 변환
+  if (commonUITexts[text]) {
+    return commonUITexts[text];
+  }
+  
+  // 부분 일치하는 텍스트 처리
+  let result = text;
+  Object.keys(commonUITexts).forEach(korean => {
+    if (text.includes(korean)) {
+      result = result.replace(korean, commonUITexts[korean]);
+    }
+  });
+  
+  // 여전히 한글이 있으면 일반적인 영문 텍스트로 대체
+  if (/[가-힣]/.test(result)) {
+    // 한글 텍스트의 길이에 따라 다른 대체 텍스트 사용
+    const length = text.length;
+    if (length <= 2) {
+      return 'Text';
+    } else if (length <= 5) {
+      return 'Short Text';
+    } else if (length <= 20) {
+      return 'Medium Text';
+    } else {
+      return 'Long Text Description. This is a placeholder for Korean text that would appear in the actual design.';
+    }
+  }
+  
+  return result;
 };
 
 // 기본 컴포넌트 템플릿 생성 (구조 분석 실패 시 사용)
@@ -225,7 +350,8 @@ const generateChildrenCSS = (children) => {
   let css = '';
   
   children.forEach(child => {
-    const className = kebabCase(child.name);
+    // 노드 이름에서 유효한 CSS 클래스명 생성
+    const className = sanitizeClassName(child.name);
     
     // 노드 유형에 따라 다른 CSS 생성
     if (child.type === 'TEXT') {
