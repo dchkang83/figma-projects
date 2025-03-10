@@ -7,14 +7,17 @@ export const generateReactComponent = (component, imageUrl) => {
   
   return `
 import React from 'react';
-import './styles/${componentName}.css';
+import classNames from 'classnames/bind';
+import styles from './${componentName}.module.css';
+
+const cx = classNames.bind(styles);
 
 /**
  * ${component.description || componentName + ' 컴포넌트'}
  */
 const ${componentName} = (props) => {
   return (
-    <div className="${componentName.toLowerCase()}-container" {...props}>
+    <div className={cx('container')} {...props}>
       {/* SVG 이미지를 직접 사용하거나 내부 요소로 구현 */}
       <img src="${imageUrl}" alt="${componentName}" />
       {props.children}
@@ -26,14 +29,16 @@ export default ${componentName};
 `;
 };
 
-// CSS 코드 생성
+// CSS 모듈 코드 생성
 export const generateComponentCSS = (component) => {
   const componentName = pascalCase(component.name).toLowerCase();
   
   return `
-.${componentName}-container {
-  display: inline-block;
+.container {
+  display: flex;
   position: relative;
+  width: 100%;
+  height: auto;
 }
 `;
 };
@@ -57,11 +62,17 @@ export const convertFigmaToReact = (figmaComponent, styleData) => {
   return {
     jsx: `
 import React from 'react';
-import './styles/${componentName}.css';
+import classNames from 'classnames/bind';
+import styles from './${componentName}.module.css';
 
+const cx = classNames.bind(styles);
+
+/**
+ * ${figmaComponent.description || componentName + ' 컴포넌트'}
+ */
 const ${componentName} = ({ children, ...props }) => {
   return (
-    <div className="${className}" {...props}>
+    <div className={cx('container')} {...props}>
       {children}
     </div>
   );
@@ -70,7 +81,7 @@ const ${componentName} = ({ children, ...props }) => {
 export default ${componentName};
 `,
     css: `
-.${className} {
+.container {
 ${styles}
   width: ${styleData?.width || 'auto'};
   height: ${styleData?.height || 'auto'};

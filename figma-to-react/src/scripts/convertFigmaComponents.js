@@ -4,12 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const { pascalCase } = require('../utils/stringUtils');
+const { optimize } = require('svgo');
+const svgr = require('@svgr/core').default;
 
 // 필요한 디렉토리 생성
 const createDirectories = () => {
   const dirs = [
     './src/components',
-    './src/components/styles',
   ];
   
   dirs.forEach(dir => {
@@ -94,20 +95,35 @@ const figmaAPI = {
 
 // React 컴포넌트 생성기
 const componentGenerator = {
-  generateReactComponent(component, imageUrl) {
+  generateReactComponent(component, svgData) {
     const componentName = pascalCase(component.name);
     
+    // SVG 내용이 있으면 React 컴포넌트로 변환
+    if (svgData.svgContent) {
+      try {
+        const reactComponent = convertSvgToReactComponent(svgData.svgContent, componentName);
+        if (reactComponent) {
+          // 변환된 React 컴포넌트 코드 반환
+          return reactComponent;
+        }
+      } catch (error) {
+        console.error(`컴포넌트 변환 실패: ${error.message}`);
+      }
+    }
+    
+    // 변환 실패 시 기본 React 컴포넌트 반환
     return `import React from 'react';
-import './styles/${componentName}.css';
+import classNames from 'classnames/bind';
+import styles from './${componentName}.module.css';
+
+const cx = classNames.bind(styles);
 
 /**
  * ${component.description || componentName + ' 컴포넌트'}
  */
 const ${componentName} = (props) => {
   return (
-    <div className="${componentName.toLowerCase()}-container" {...props}>
-      {/* Figma에서 가져온 SVG 이미지 */}
-      <img src="${imageUrl}" alt="${componentName}" />
+    <div className={cx('container')} {...props}>
       {props.children}
     </div>
   );
@@ -120,18 +136,20 @@ export default ${componentName};
   generateCSS(component) {
     const componentName = pascalCase(component.name).toLowerCase();
     
-    return `.${componentName}-container {
-  display: inline-block;
+    return `.container {
+  display: flex;
   position: relative;
+  width: 100%;
+  height: auto;
 }
 `;
   }
 };
 
 // 파일 저장 함수
-const saveComponentFiles = (component, imageUrl) => {
+const saveComponentFiles = (component, svgData) => {
   const componentName = pascalCase(component.name);
-  const jsxContent = componentGenerator.generateReactComponent(component, imageUrl);
+  const jsxContent = componentGenerator.generateReactComponent(component, svgData);
   const cssContent = componentGenerator.generateCSS(component);
   
   // JSX 파일 저장
@@ -140,9 +158,9 @@ const saveComponentFiles = (component, imageUrl) => {
     jsxContent
   );
   
-  // CSS 파일 저장
+  // CSS 모듈 파일 저장
   fs.writeFileSync(
-    path.resolve(`./src/components/styles/${componentName}.css`),
+    path.resolve(`./src/components/${componentName}.module.css`),
     cssContent
   );
   
@@ -153,6 +171,7 @@ const saveComponentFiles = (component, imageUrl) => {
 const downloadSVG = async (url, componentName) => {
   try {
     const response = await axios.get(url);
+    const svgContent = response.data;
     const svgDir = './public/svgs';
     
     if (!fs.existsSync(svgDir)) {
@@ -160,12 +179,79 @@ const downloadSVG = async (url, componentName) => {
     }
     
     const filePath = `${svgDir}/${componentName}.svg`;
-    fs.writeFileSync(filePath, response.data);
+    fs.writeFileSync(filePath, svgContent);
     
-    return `/svgs/${componentName}.svg`;
+    return {
+      localPath: `/svgs/${componentName}.svg`,
+      svgContent: svgContent
+    };
   } catch (error) {
     console.error(`SVG 다운로드 실패: ${error.message}`);
-    return url; // 실패 시 원래 URL 반환
+    return {
+      localPath: url,
+      svgContent: null
+    };
+  }
+};
+
+// SVG를 React 컴포넌트로 변환하는 함수
+const convertSvgToReactComponent = (svgContent, componentName) => {
+  try {
+    // SVG 내용에서 필요한 부분만 추출
+    const svgMatch = svgContent.match(/<svg[^>]*>([\s\S]*?)<\/svg>/i);
+    
+    if (!svgMatch) {
+      throw new Error('유효한 SVG 내용을 찾을 수 없습니다.');
+    }
+    
+    // SVG 속성 추출
+    const svgTagMatch = svgContent.match(/<svg([^>]*)>/i);
+    const svgAttributes = svgTagMatch ? svgTagMatch[1] : '';
+    
+    // viewBox 추출
+    const viewBoxMatch = svgAttributes.match(/viewBox=["']([^"']*)["']/i);
+    const viewBox = viewBoxMatch ? viewBoxMatch[1] : '0 0 24 24'; // 기본값
+    
+    // width와 height 추출
+    const widthMatch = svgAttributes.match(/width=["']([^"']*)["']/i);
+    const heightMatch = svgAttributes.match(/height=["']([^"']*)["']/i);
+    const width = widthMatch ? widthMatch[1] : '100%';
+    const height = heightMatch ? heightMatch[1] : '100%';
+    
+    // SVG 내용
+    const svgInner = svgMatch[1];
+    
+    // React 컴포넌트 생성
+    return `import React from 'react';
+import classNames from 'classnames/bind';
+import styles from './${componentName}.module.css';
+
+const cx = classNames.bind(styles);
+
+/**
+ * ${componentName} 컴포넌트
+ */
+const ${componentName} = ({ width = "${width}", height = "${height}", ...props }) => {
+  return (
+    <div className={cx('container')}>
+      <svg
+        width={width}
+        height={height}
+        viewBox="${viewBox}"
+        xmlns="http://www.w3.org/2000/svg"
+        {...props}
+      >
+        ${svgInner}
+      </svg>
+    </div>
+  );
+};
+
+export default ${componentName};
+`;
+  } catch (error) {
+    console.error(`SVG 변환 실패: ${error.message}`);
+    return null;
   }
 };
 
@@ -205,10 +291,10 @@ const convertFigmaComponents = async () => {
       if (imageUrl) {
         // 로컬 SVG 파일 저장
         console.log(`'${component.name}' 컴포넌트의 SVG 다운로드 중...`);
-        const localImagePath = await downloadSVG(imageUrl, pascalCase(component.name));
+        const svgData = await downloadSVG(imageUrl, pascalCase(component.name));
         
         // 컴포넌트 파일 생성
-        saveComponentFiles(component, localImagePath);
+        saveComponentFiles(component, svgData);
         
         // 인덱스 파일에 추가
         const componentName = pascalCase(component.name);

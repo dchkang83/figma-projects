@@ -2,12 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import figmaService from './services/figmaService';
 import { generateReactComponent, generateComponentCSS } from './utils/componentGenerator';
+import Modal1 from './components/Modal1';
 import './App.css';
 
 function App() {
   const [components, setComponents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showExample, setShowExample] = useState(false);
   
   useEffect(() => {
     const fetchComponents = async () => {
@@ -60,7 +62,42 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>Figma to React Component Converter</h1>
+        <button 
+          className="example-button" 
+          onClick={() => setShowExample(!showExample)}
+        >
+          {showExample ? '예시 숨기기' : '예시 보기'}
+        </button>
       </header>
+      
+      {showExample && (
+        <div className="example-section">
+          <h2>예시 컴포넌트</h2>
+          <div className="example-component">
+            <Modal1 />
+          </div>
+          <div className="example-code">
+            <h3>컴포넌트 코드</h3>
+            <pre>
+{`import React from 'react';
+import classNames from 'classnames/bind';
+import styles from './Modal1.module.css';
+
+const cx = classNames.bind(styles);
+
+const Modal1 = () => {
+  return (
+    <div className={cx('container')}>
+      <h1>내 애플리케이션</h1>
+    </div>
+  );
+};
+
+export default Modal1;`}
+            </pre>
+          </div>
+        </div>
+      )}
       
       <main>
         {loading ? (
