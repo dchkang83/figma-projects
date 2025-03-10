@@ -51,7 +51,7 @@ function App() {
   }, []);
   
   // 컴포넌트 코드 생성 및 다운로드
-  const generateComponentCode = (component) => {
+  const generateComponentCode = async (component) => {
     try {
       console.log('컴포넌트 생성 시작:', component);
       setGenerating(prev => ({ ...prev, [component.id]: true }));
@@ -62,9 +62,15 @@ function App() {
         name: component.name.replace(/=/g, '')
       };
       
-      // 컴포넌트 코드 생성
-      const reactCode = generateReactComponent(cleanedComponent, component.imageUrl);
-      const cssCode = generateComponentCSS(cleanedComponent);
+      // Figma 파일 키 가져오기
+      const fileKey = process.env.REACT_APP_FIGMA_FILE_KEY;
+      if (!fileKey) {
+        throw new Error('Figma 파일 키가 설정되지 않았습니다.');
+      }
+      
+      // 컴포넌트 코드 생성 (비동기 함수로 변경)
+      const reactCode = await generateReactComponent(cleanedComponent, component.imageUrl, fileKey);
+      const cssCode = await generateComponentCSS(cleanedComponent, fileKey);
       
       console.log('생성된 코드:', { reactCode, cssCode });
       
@@ -209,7 +215,7 @@ export default Modal1;`}
                     )}
                     <div>
                       <button 
-                        onClick={() => generateComponentCode(component)}
+                        onClick={async () => await generateComponentCode(component)}
                         disabled={generating[component.id]}
                         className="generate-button"
                       >

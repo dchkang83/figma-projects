@@ -40,6 +40,30 @@ const figmaService = {
       console.error('Figma 이미지 가져오기 오류:', error);
       throw error;
     }
+  },
+  
+  // 특정 컴포넌트의 상세 구조 정보 가져오기
+  getComponentDetails: async (fileKey, nodeId) => {
+    try {
+      const response = await axios.get(`${FIGMA_API_URL}/files/${fileKey}/nodes?ids=${nodeId}`, {
+        headers: {
+          'X-Figma-Token': process.env.REACT_APP_FIGMA_TOKEN
+        }
+      });
+      
+      // 노드 데이터에서 컴포넌트 구조 추출
+      const nodeData = response.data.nodes[nodeId];
+      if (!nodeData) {
+        throw new Error(`컴포넌트 노드를 찾을 수 없습니다: ${nodeId}`);
+      }
+      
+      // 컴포넌트 구조 분석
+      const componentStructure = analyzeComponentStructure(nodeData.document);
+      return componentStructure;
+    } catch (error) {
+      console.error('Figma 컴포넌트 상세 정보 가져오기 오류:', error);
+      throw error;
+    }
   }
 };
 
@@ -56,7 +80,10 @@ const extractComponents = (figmaData) => {
         name: node.name,
         type: node.type,
         description: node.description || '',
-        key: node.key || node.id
+        key: node.key || node.id,
+        // 추가 정보 저장
+        absoluteBoundingBox: node.absoluteBoundingBox,
+        styles: node.styles || {}
       });
     }
     
@@ -70,6 +97,43 @@ const extractComponents = (figmaData) => {
   traverseNodes(figmaData.document);
   
   return components;
+};
+
+// 컴포넌트 구조 분석
+const analyzeComponentStructure = (node) => {
+  // 기본 노드 정보
+  const nodeInfo = {
+    id: node.id,
+    name: node.name,
+    type: node.type,
+    visible: node.visible !== false,
+    children: []
+  };
+  
+  // 스타일 정보 추가
+  if (node.fills) nodeInfo.fills = node.fills;
+  if (node.strokes) nodeInfo.strokes = node.strokes;
+  if (node.strokeWeight) nodeInfo.strokeWeight = node.strokeWeight;
+  if (node.cornerRadius) nodeInfo.cornerRadius = node.cornerRadius;
+  if (node.absoluteBoundingBox) nodeInfo.absoluteBoundingBox = node.absoluteBoundingBox;
+  
+  // 텍스트 노드인 경우 텍스트 내용 추가
+  if (node.type === 'TEXT') {
+    nodeInfo.characters = node.characters || '';
+    nodeInfo.style = node.style || {};
+  }
+  
+  // 자식 노드 처리
+  if (node.children && node.children.length > 0) {
+    node.children.forEach(child => {
+      // 보이는 노드만 처리
+      if (child.visible !== false) {
+        nodeInfo.children.push(analyzeComponentStructure(child));
+      }
+    });
+  }
+  
+  return nodeInfo;
 };
 
 export default figmaService;
