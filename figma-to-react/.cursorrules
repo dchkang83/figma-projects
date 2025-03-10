@@ -1,0 +1,16 @@
+
+
+figma-to-react/
+├── public/
+├── src/
+│   ├── services/
+│   │   └── figmaService.js
+│   ├── utils/
+│   │   ├── stringUtils.js       // 새로 추가된 파일
+│   │   └── componentGenerator.js // 수정된 파일
+│   ├── App.js
+│   ├── App.css
+│   ├── index.js
+│   └── index.css
+├── package.json
+└── .env                         // Figma 토큰과 파일 키 저장
