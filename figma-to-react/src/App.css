@@ -158,11 +158,21 @@
   background-color: #f0f0f0;
   border-radius: 4px;
   overflow: auto;
+  text-align: left;
+}
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
 }
 
 .code-preview h5 {
   margin-top: 0;
+  margin-bottom: 0;
   color: #555;
+  text-align: left;
 }
 
 .code-preview pre {
@@ -174,6 +184,24 @@
   font-size: 14px;
   line-height: 1.4;
   max-height: 300px;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.copy-button {
+  padding: 4px 10px;
+  background-color: #9c27b0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.copy-button:hover {
+  background-color: #7b1fa2;
 }
 
 .download-button {
@@ -185,6 +213,7 @@
   cursor: pointer;
   font-size: 14px;
   margin-top: 10px;
+  margin-right: 10px;
 }
 
 .download-button:hover {

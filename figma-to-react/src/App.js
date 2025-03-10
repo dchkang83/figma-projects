@@ -1,9 +1,10 @@
 // src/App.js
 import React, { useState, useEffect } from 'react';
+import './App.css';
 import figmaService from './services/figmaService';
 import { generateReactComponent, generateComponentCSS } from './utils/componentGenerator';
+import { pascalCase } from './utils/stringUtils';
 import Modal1 from './components/Modal1';
-import './App.css';
 
 function App() {
   const [components, setComponents] = useState([]);
@@ -12,6 +13,7 @@ function App() {
   const [showExample, setShowExample] = useState(false);
   const [generatedComponents, setGeneratedComponents] = useState({});
   const [generating, setGenerating] = useState({});
+  const [copySuccess, setCopySuccess] = useState({});
   
   useEffect(() => {
     const fetchComponents = async () => {
@@ -54,9 +56,15 @@ function App() {
       console.log('컴포넌트 생성 시작:', component);
       setGenerating(prev => ({ ...prev, [component.id]: true }));
       
+      // 컴포넌트 이름에서 '=' 문자 제거
+      const cleanedComponent = {
+        ...component,
+        name: component.name.replace(/=/g, '')
+      };
+      
       // 컴포넌트 코드 생성
-      const reactCode = generateReactComponent(component, component.imageUrl);
-      const cssCode = generateComponentCSS(component);
+      const reactCode = generateReactComponent(cleanedComponent, component.imageUrl);
+      const cssCode = generateComponentCSS(cleanedComponent);
       
       console.log('생성된 코드:', { reactCode, cssCode });
       
@@ -66,7 +74,7 @@ function App() {
         [component.id]: {
           jsx: reactCode,
           css: cssCode,
-          name: component.name
+          name: cleanedComponent.name
         }
       }));
     } catch (err) {
@@ -80,23 +88,19 @@ function App() {
   // JSX 파일 다운로드
   const downloadJSX = (componentId) => {
     const component = generatedComponents[componentId];
-    if (!component) return;
-    
-    const fileName = `${component.name}.jsx`;
-    const fileContent = component.jsx;
-    
-    downloadFile(fileName, fileContent);
+    if (component) {
+      const componentName = pascalCase(component.name.replace(/=/g, ''));
+      downloadFile(`${componentName}.jsx`, component.jsx);
+    }
   };
   
   // CSS 모듈 파일 다운로드
   const downloadCSS = (componentId) => {
     const component = generatedComponents[componentId];
-    if (!component) return;
-    
-    const fileName = `${component.name}.module.css`;
-    const fileContent = component.css;
-    
-    downloadFile(fileName, fileContent);
+    if (component) {
+      const componentName = pascalCase(component.name.replace(/=/g, ''));
+      downloadFile(`${componentName}.module.css`, component.css);
+    }
   };
   
   // 파일 다운로드 헬퍼 함수
@@ -108,6 +112,36 @@ function App() {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+  };
+  
+  // 코드 복사 함수
+  const copyToClipboard = (text, type, componentId) => {
+    navigator.clipboard.writeText(text).then(
+      () => {
+        // 복사 성공 상태 업데이트
+        setCopySuccess(prev => ({
+          ...prev,
+          [componentId]: {
+            ...prev[componentId],
+            [type]: true
+          }
+        }));
+        
+        // 3초 후 성공 메시지 제거
+        setTimeout(() => {
+          setCopySuccess(prev => ({
+            ...prev,
+            [componentId]: {
+              ...prev[componentId],
+              [type]: false
+            }
+          }));
+        }, 3000);
+      },
+      (err) => {
+        console.error('클립보드 복사 실패:', err);
+      }
+    );
   };
   
   return (
@@ -173,35 +207,63 @@ export default Modal1;`}
                         className="component-preview" 
                       />
                     )}
-                    <button 
-                      onClick={() => generateComponentCode(component)}
-                      disabled={generating[component.id]}
-                      className="generate-button"
-                    >
-                      {generating[component.id] ? '생성 중...' : 'React 컴포넌트 생성'}
-                    </button>
+                    <div>
+                      <button 
+                        onClick={() => generateComponentCode(component)}
+                        disabled={generating[component.id]}
+                        className="generate-button"
+                      >
+                        {generating[component.id] ? '생성 중...' : 'React 컴포넌트 생성'}
+                      </button>
+                    </div>
                     
                     {generatedComponents[component.id] && (
                       <div className="generated-component">
-                        <h4>생성된 컴포넌트</h4>
+                        <h4>{generatedComponents[component.id].name} 컴포넌트 생성됨</h4>
+                        
                         <div className="code-preview">
-                          <h5>JSX</h5>
+                          <div className="code-header">
+                            <h5>JSX 코드</h5>
+                            <button 
+                              className="copy-button"
+                              onClick={() => copyToClipboard(
+                                generatedComponents[component.id].jsx, 
+                                'jsx', 
+                                component.id
+                              )}
+                            >
+                              {copySuccess[component.id]?.jsx ? '복사됨!' : '복사하기'}
+                            </button>
+                          </div>
                           <pre>{generatedComponents[component.id].jsx}</pre>
                           <button 
-                            onClick={() => downloadJSX(component.id)}
                             className="download-button"
+                            onClick={() => downloadJSX(component.id)}
                           >
                             JSX 다운로드
                           </button>
                         </div>
+                        
                         <div className="code-preview">
-                          <h5>CSS Module</h5>
+                          <div className="code-header">
+                            <h5>CSS 모듈 코드</h5>
+                            <button 
+                              className="copy-button"
+                              onClick={() => copyToClipboard(
+                                generatedComponents[component.id].css, 
+                                'css', 
+                                component.id
+                              )}
+                            >
+                              {copySuccess[component.id]?.css ? '복사됨!' : '복사하기'}
+                            </button>
+                          </div>
                           <pre>{generatedComponents[component.id].css}</pre>
                           <button 
-                            onClick={() => downloadCSS(component.id)}
                             className="download-button"
+                            onClick={() => downloadCSS(component.id)}
                           >
-                            CSS 다운로드
+                            CSS 모듈 다운로드
                           </button>
                         </div>
                       </div>
