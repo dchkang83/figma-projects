@@ -10,6 +10,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showExample, setShowExample] = useState(false);
+  const [generatedComponents, setGeneratedComponents] = useState({});
+  const [generating, setGenerating] = useState({});
   
   useEffect(() => {
     const fetchComponents = async () => {
@@ -48,14 +50,64 @@ function App() {
   
   // 컴포넌트 코드 생성 및 다운로드
   const generateComponentCode = (component) => {
-    const reactCode = generateReactComponent(component, component.imageUrl);
-    const cssCode = generateComponentCSS(component);
+    try {
+      console.log('컴포넌트 생성 시작:', component);
+      setGenerating(prev => ({ ...prev, [component.id]: true }));
+      
+      // 컴포넌트 코드 생성
+      const reactCode = generateReactComponent(component, component.imageUrl);
+      const cssCode = generateComponentCSS(component);
+      
+      console.log('생성된 코드:', { reactCode, cssCode });
+      
+      // 생성된 코드 저장
+      setGeneratedComponents(prev => ({
+        ...prev,
+        [component.id]: {
+          jsx: reactCode,
+          css: cssCode,
+          name: component.name
+        }
+      }));
+    } catch (err) {
+      console.error('컴포넌트 생성 실패:', err);
+      setError('컴포넌트 생성 중 오류가 발생했습니다: ' + err.message);
+    } finally {
+      setGenerating(prev => ({ ...prev, [component.id]: false }));
+    }
+  };
+  
+  // JSX 파일 다운로드
+  const downloadJSX = (componentId) => {
+    const component = generatedComponents[componentId];
+    if (!component) return;
     
-    // 코드를 표시하거나 파일로 다운로드할 수 있음
-    console.log(reactCode, cssCode);
+    const fileName = `${component.name}.jsx`;
+    const fileContent = component.jsx;
     
-    // 여기서 파일 시스템 작업을 수행하거나 다운로드 링크 생성 가능
-    // 실제 구현에서는 서버 측에서 파일 생성을 처리해야 함
+    downloadFile(fileName, fileContent);
+  };
+  
+  // CSS 모듈 파일 다운로드
+  const downloadCSS = (componentId) => {
+    const component = generatedComponents[componentId];
+    if (!component) return;
+    
+    const fileName = `${component.name}.module.css`;
+    const fileContent = component.css;
+    
+    downloadFile(fileName, fileContent);
+  };
+  
+  // 파일 다운로드 헬퍼 함수
+  const downloadFile = (fileName, content) => {
+    const element = document.createElement('a');
+    const file = new Blob([content], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = fileName;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
   };
   
   return (
@@ -121,9 +173,39 @@ export default Modal1;`}
                         className="component-preview" 
                       />
                     )}
-                    <button onClick={() => generateComponentCode(component)}>
-                      React 컴포넌트 생성
+                    <button 
+                      onClick={() => generateComponentCode(component)}
+                      disabled={generating[component.id]}
+                      className="generate-button"
+                    >
+                      {generating[component.id] ? '생성 중...' : 'React 컴포넌트 생성'}
                     </button>
+                    
+                    {generatedComponents[component.id] && (
+                      <div className="generated-component">
+                        <h4>생성된 컴포넌트</h4>
+                        <div className="code-preview">
+                          <h5>JSX</h5>
+                          <pre>{generatedComponents[component.id].jsx}</pre>
+                          <button 
+                            onClick={() => downloadJSX(component.id)}
+                            className="download-button"
+                          >
+                            JSX 다운로드
+                          </button>
+                        </div>
+                        <div className="code-preview">
+                          <h5>CSS Module</h5>
+                          <pre>{generatedComponents[component.id].css}</pre>
+                          <button 
+                            onClick={() => downloadCSS(component.id)}
+                            className="download-button"
+                          >
+                            CSS 다운로드
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
