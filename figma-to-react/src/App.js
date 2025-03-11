@@ -154,10 +154,11 @@ function App() {
     <div className="App">
 
 
-<div>test
+{/* <div>
+test-STARTE
 <Modal1 />
-
-</div>
+test-END
+</div> */}
 
       <header className="App-header">
         <h1>Figma to React Component Converter</h1>
