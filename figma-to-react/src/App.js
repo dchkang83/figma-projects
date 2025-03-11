@@ -201,7 +201,10 @@ export default Modal1;`}
       
       <main>
         {loading ? (
-          <p>컴포넌트를 가져오는 중...</p>
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <p className="loading-text">컴포넌트를 가져오는 중...</p>
+          </div>
         ) : error ? (
           <p className="error">{error}</p>
         ) : (
@@ -227,7 +230,12 @@ export default Modal1;`}
                         disabled={generating[component.id]}
                         className="generate-button"
                       >
-                        {generating[component.id] ? '생성 중...' : 'React 컴포넌트 생성'}
+                        {generating[component.id] ? (
+                          <span className="button-loading">
+                            <span className="button-spinner"></span>
+                            생성 중...
+                          </span>
+                        ) : 'React 컴포넌트 생성'}
                       </button>
                     </div>
                     
